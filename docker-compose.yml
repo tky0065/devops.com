@@ -12,6 +12,21 @@ services:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8080
     restart: unless-stopped
+    networks:
+      - default
+      - web
+    labels:
+      - "traefik.enable=true"
+      # TLS router for API
+      - "traefik.http.routers.devops-backend.rule=Host(`devops.enokdev.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.devops-backend.entrypoints=websecure"
+      - "traefik.http.routers.devops-backend.tls.certresolver=myresolver"
+      - "traefik.http.services.devops-backend.loadbalancer.server.port=8080"
+      # HTTP router for ACME challenge and redirect to HTTPS
+      - "traefik.http.routers.devops-backend-http.rule=Host(`devops.enokdev.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.devops-backend-http.entrypoints=web"
+      - "traefik.http.routers.devops-backend-http.middlewares=devops-backend-redirect"
+      - "traefik.http.middlewares.devops-backend-redirect.redirectscheme.scheme=https"
 
   frontend:
     build:
@@ -22,28 +37,24 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-
-  caddy:
-    image: caddy:2
-    container_name: devops-caddy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    depends_on:
-      - frontend
-      - backend
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
     networks:
       - default
-
-volumes:
-  caddy_data:
-  caddy_config:
+      - web
+    labels:
+      - "traefik.enable=true"
+      # TLS router for frontend
+      - "traefik.http.routers.devops-frontend.rule=Host(`devops.enokdev.com`)"
+      - "traefik.http.routers.devops-frontend.entrypoints=websecure"
+      - "traefik.http.routers.devops-frontend.tls.certresolver=myresolver"
+      - "traefik.http.services.devops-frontend.loadbalancer.server.port=80"
+      # HTTP router for redirect to HTTPS
+      - "traefik.http.routers.devops-frontend-http.rule=Host(`devops.enokdev.com`)"
+      - "traefik.http.routers.devops-frontend-http.entrypoints=web"
+      - "traefik.http.routers.devops-frontend-http.middlewares=devops-frontend-redirect"
+      - "traefik.http.middlewares.devops-frontend-redirect.redirectscheme.scheme=https"
 
 networks:
   default:
     driver: bridge
+  web:
+    external: true

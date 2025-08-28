@@ -560,13 +560,11 @@ Ce projet est sous licence MIT.
 
 ## Déploiement en production avec HTTPS (via Caddy)
 
-Si vous voulez utiliser le domaine `devops.enokdev.com` et obtenir automatiquement des certificats TLS, le projet inclut une configuration Caddy et un service dans `docker-compose.yml`.
-
-Étapes rapides :
+Si votre VPS a déjà Traefik (ou un autre reverse-proxy) qui gère TLS, la configuration par défaut du `docker-compose.yml` utilise le réseau Docker externe `traefik` et des labels pour déclarer les routes:
 
 1. DNS: ajoutez un enregistrement A pour `devops.enokdev.com` pointant vers l'IP publique de votre serveur (VPS).
 
-2. Ouvrez/autorisez les ports 80 et 443 sur le serveur (firewall/cloud provider). Caddy doit pouvoir joindre Let's Encrypt via le port 80/443 pour obtenir les certificats.
+2. Ouvrez/autorisez les ports 80 et 443 sur le serveur (firewall/cloud provider). Traefik doit pouvoir joindre Let's Encrypt via ces ports.
 
 3. Lancer les services:
 
@@ -578,7 +576,6 @@ docker compose up --build -d
 docker compose ps
 
 # logs si nécessaire
-docker compose logs -f caddy
 docker compose logs -f backend
 docker compose logs -f frontend
 ```
@@ -586,17 +583,22 @@ docker compose logs -f frontend
 4. Vérifier TLS et accessibilité:
 
 ```bash
-# vérifier que Caddy a obtenu un cert
+# vérifier que Traefik a obtenu un cert
 curl -I https://devops.enokdev.com
 
 # health checks
 curl -I https://devops.enokdev.com/api/health
 ```
 
-5. Si vous utilisez un reverse-proxy ou un load-balancer devant le serveur, assurez-vous qu'il passe les en-têtes X-Forwarded-* et que Caddy reçoit les connexions directes si possible. Si vous ne pouvez pas exposer les ports 80/443 depuis ce serveur, Caddy ne pourra pas obtenir automatiquement les certificats. Alternative : générer des certificats via un autre ACME client, ou utiliser des certificats fournis manuellement et les monter dans les volumes `caddy_config`/`caddy_data`.
+Remarques:
 
-Notes de sécurité:
+- Le `docker-compose.yml` attache les services au réseau Docker `traefik` (external: true). Assurez-vous que ce réseau existe sur l'hôte (généralement créé par Traefik lors de son déploiement). Vous pouvez vérifier avec `docker network ls`.
+- Si le réseau `traefik` n'existe pas, créez-le manuellement :
 
-- Caddy gère le renouvellement automatiquement. Vérifiez les logs (`docker compose logs caddy`) si vous voyez des erreurs d'ACME/validation.
-- Vous pouvez forcer Caddy à utiliser l'environnement staging de Let's Encrypt pour tests en ajoutant `--env ACME_CA_URL=https://acme-staging-v02.api.letsencrypt.org/directory` dans la configuration du container, mais ne l'utilisez pas en production.
+```bash
+docker network create traefik
+```
+
+- Les labels configurés sur les services exposent `devops.enokdev.com` pour le frontend et `/api` pour le backend. Adaptez les règles si vous voulez sous-domaines séparés (ex: `api.devops.enokdev.com`).
+
 
