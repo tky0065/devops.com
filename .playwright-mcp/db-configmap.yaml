@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: db-config
+    namespace: default
+    labels:
+        app: db
+data:
+    POSTGRES_DB: myapp

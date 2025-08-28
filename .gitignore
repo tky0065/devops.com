@@ -1,0 +1,84 @@
+# Fichiers binaires Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+devops-converter
+main
+
+# Fichiers de test
+*.test
+*.out
+coverage.out
+
+# Dépendances Go
+vendor/
+go.work
+go.work.sum
+
+# Fichiers d'environnement
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+logs/
+
+# Fichiers temporaires
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Fichiers IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Fichiers Node.js (pour le frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build du frontend
+frontend/dist/
+frontend/build/
+
+# Fichiers de certificat
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Dossiers de build
+build/
+dist/
+out/
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Coverage
+coverage/
+*.lcov
+
+# Fichiers de sauvegarde
+*.bak
+*.backup
