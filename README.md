@@ -557,3 +557,46 @@ Ce projet est sous licence MIT.
 **Statut** : ✅ Backend fonctionnel - Prêt pour le développement frontend
 **Version** : 1.0.0
 **Dernière mise à jour** : 28 août 2025
+
+## Déploiement en production avec HTTPS (via Caddy)
+
+Si vous voulez utiliser le domaine `devops.enokdev.com` et obtenir automatiquement des certificats TLS, le projet inclut une configuration Caddy et un service dans `docker-compose.yml`.
+
+Étapes rapides :
+
+1. DNS: ajoutez un enregistrement A pour `devops.enokdev.com` pointant vers l'IP publique de votre serveur (VPS).
+
+2. Ouvrez/autorisez les ports 80 et 443 sur le serveur (firewall/cloud provider). Caddy doit pouvoir joindre Let's Encrypt via le port 80/443 pour obtenir les certificats.
+
+3. Lancer les services:
+
+```bash
+# depuis la racine du repo
+docker compose up --build -d
+
+# vérifier l'état
+docker compose ps
+
+# logs si nécessaire
+docker compose logs -f caddy
+docker compose logs -f backend
+docker compose logs -f frontend
+```
+
+4. Vérifier TLS et accessibilité:
+
+```bash
+# vérifier que Caddy a obtenu un cert
+curl -I https://devops.enokdev.com
+
+# health checks
+curl -I https://devops.enokdev.com/api/health
+```
+
+5. Si vous utilisez un reverse-proxy ou un load-balancer devant le serveur, assurez-vous qu'il passe les en-têtes X-Forwarded-* et que Caddy reçoit les connexions directes si possible. Si vous ne pouvez pas exposer les ports 80/443 depuis ce serveur, Caddy ne pourra pas obtenir automatiquement les certificats. Alternative : générer des certificats via un autre ACME client, ou utiliser des certificats fournis manuellement et les monter dans les volumes `caddy_config`/`caddy_data`.
+
+Notes de sécurité:
+
+- Caddy gère le renouvellement automatiquement. Vérifiez les logs (`docker compose logs caddy`) si vous voyez des erreurs d'ACME/validation.
+- Vous pouvez forcer Caddy à utiliser l'environnement staging de Let's Encrypt pour tests en ajoutant `--env ACME_CA_URL=https://acme-staging-v02.api.letsencrypt.org/directory` dans la configuration du container, mais ne l'utilisez pas en production.
+

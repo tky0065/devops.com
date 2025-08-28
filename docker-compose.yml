@@ -11,8 +11,6 @@ services:
       - APP_ENV=production
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8080
-    ports:
-      - "8081:8080"
     restart: unless-stopped
 
   frontend:
@@ -21,11 +19,30 @@ services:
       dockerfile: Dockerfile
     image: devops-converter-frontend:latest
     container_name: devops-frontend
-    ports:
-      - "5173:80"
     depends_on:
       - backend
     restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    container_name: devops-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - frontend
+      - backend
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - default
+
+volumes:
+  caddy_data:
+  caddy_config:
 
 networks:
   default:
