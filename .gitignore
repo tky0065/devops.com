@@ -6,7 +6,8 @@
 *.dylib
 devops-converter
 main
-
+.playwrite-mcp
+/.playwright-mcp
 # Fichiers de test
 *.test
 *.out
