@@ -109,9 +109,9 @@
                 Format de fichier
               </label>
               <select v-model="selectedType" class="form-input form-select">
-                <option value="docker-compose">🐳 Docker Compose (YAML)</option>
-                <option value="dockerfile" disabled>🏗️ Dockerfile (Bientôt disponible)</option>
-                <option value="helm" disabled>⚙️ Helm Chart (Bientôt disponible)</option>
+                <option value="docker-compose">Docker Compose (YAML)</option>
+                <option value="dockerfile" disabled>Dockerfile (Bientôt disponible)</option>
+                <option value="helm" disabled>Helm Chart (Bientôt disponible)</option>
               </select>
             </div>
 
@@ -131,6 +131,53 @@
                 </svg>
                 {{ tab.label }}
               </button>
+            </div>
+
+            <!-- Champ de nom de projet -->
+            <div class="form-group">
+              <label class="form-label">
+                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a1.994 1.994 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                </svg>
+                Nom du projet
+              </label>
+              <input 
+                v-model="projectName" 
+                type="text" 
+                class="form-input" 
+                placeholder="Entrez le nom du projet..."
+                :disabled="conversionStore.isLoading"
+              >
+            </div>
+
+            <!-- Choix de génération -->
+            <div class="form-group">
+              <label class="form-label">
+                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                Type de génération
+              </label>
+              <div class="radio-group">
+                <label class="radio-option">
+                  <input type="radio" v-model="outputType" value="all-in-one" :disabled="conversionStore.isLoading">
+                  <span class="radio-icon">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                  </span>
+                  Fichier unique (recommandé)
+                </label>
+                <label class="radio-option">
+                  <input type="radio" v-model="outputType" value="separate" :disabled="conversionStore.isLoading">
+                  <span class="radio-icon">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                  </span>
+                  Fichiers séparés
+                </label>
+              </div>
             </div>
 
             <!-- Zone de texte améliorée -->
@@ -182,7 +229,8 @@ services:
               <div
                 @drop="handleDrop"
                 @dragover.prevent
-                @dragenter.prevent
+                @dragenter="handleDragEnter"
+                @dragleave="handleDragLeave"
                 class="drop-zone"
                 :class="{ 'drag-over': isDragOver }"
               >
@@ -203,7 +251,7 @@ services:
                   <h3 class="text-lg font-semibold text-slate-900 mb-2">Importez votre fichier</h3>
                   <p class="text-slate-600 mb-4">
                     Glissez-déposez votre fichier YAML ou 
-                    <button @click="fileInput?.click()" class="font-semibold text-blue-600 hover:text-blue-700">
+                    <button @click="openFileDialog" class="font-semibold text-blue-600 hover:text-blue-700">
                       parcourez vos fichiers
                     </button>
                   </p>
@@ -270,9 +318,9 @@ services:
                 <div>
                   <label class="block text-sm font-medium text-slate-600 mb-2">Type de service</label>
                   <select v-model="conversionOptions.serviceType" class="form-input form-select">
-                    <option value="ClusterIP">🔒 ClusterIP (Interne)</option>
-                    <option value="NodePort">🌐 NodePort (Externe)</option>
-                    <option value="LoadBalancer">⚖️ LoadBalancer (Cloud)</option>
+                    <option value="ClusterIP">ClusterIP (Interne)</option>
+                    <option value="NodePort">NodePort (Externe)</option>
+                    <option value="LoadBalancer">LoadBalancer (Cloud)</option>
                   </select>
                 </div>
                 
@@ -444,6 +492,40 @@ services:
                       </div>
                     </div>
                     <div class="flex items-center space-x-2">
+                      <!-- Bouton éditer -->
+                      <button
+                        @click="startEditing(index)"
+                        v-if="isEditing !== index"
+                        class="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Éditer"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                      </button>
+                      
+                      <!-- Boutons sauvegarder/annuler (visible en mode édition) -->
+                      <div v-if="isEditing === index" class="flex items-center space-x-1">
+                        <button
+                          @click="saveEdit(index)"
+                          class="p-2 text-slate-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Sauvegarder"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                          </svg>
+                        </button>
+                        <button
+                          @click="cancelEdit()"
+                          class="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Annuler"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                          </svg>
+                        </button>
+                      </div>
+                      
                       <button
                         @click="copyToClipboard(file.content)"
                         class="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -467,7 +549,22 @@ services:
                 </div>
                 
                 <div class="p-4">
-                  <pre class="code-block text-xs overflow-x-auto"><code>{{ file.content }}</code></pre>
+                  <!-- Mode édition -->
+                  <div v-if="isEditing === index" class="space-y-3">
+                    <label class="block text-sm font-medium text-slate-700">
+                      Édition du fichier {{ file.name }}
+                    </label>
+                    <textarea
+                      v-model="editContent"
+                      class="form-input form-textarea h-80 font-mono text-xs"
+                      placeholder="Contenu YAML..."
+                    ></textarea>
+                  </div>
+                  
+                  <!-- Mode lecture -->
+                  <div v-else>
+                    <pre class="code-block text-xs overflow-x-auto"><code>{{ file.content }}</code></pre>
+                  </div>
                 </div>
               </div>
             </div>
@@ -535,6 +632,10 @@ const selectedType = ref('docker-compose')
 const activeInputTab = ref('text')
 const isDragOver = ref(false)
 const fileInput = ref<HTMLInputElement>()
+const projectName = ref('')
+const outputType = ref('all-in-one')
+const isEditing = ref<number | null>(null)
+const editContent = ref('')
 
 // Configuration de conversion
 const conversionOptions = ref<ConversionOptions>({
@@ -594,6 +695,20 @@ const handleDrop = (event: DragEvent) => {
   }
 }
 
+const handleDragEnter = (event: DragEvent) => {
+  event.preventDefault()
+  isDragOver.value = true
+}
+
+const handleDragLeave = (event: DragEvent) => {
+  event.preventDefault()
+  // Vérifier si on quitte vraiment la zone (pas un enfant)
+  if (!event.currentTarget || !event.relatedTarget || 
+      !(event.currentTarget as Element).contains(event.relatedTarget as Node)) {
+    isDragOver.value = false
+  }
+}
+
 const readFileContent = async (file: File) => {
   try {
     const text = await file.text()
@@ -641,8 +756,16 @@ const validateInput = async () => {
   }
 
   try {
+    // Obtenir le contenu à valider
+    let content = ''
+    if (activeInputTab.value === 'text') {
+      content = inputContent.value
+    } else if (selectedFile.value) {
+      content = await selectedFile.value.text()
+    }
+
     await conversionStore.validate({
-      content: inputContent.value,
+      content: content,
       type: selectedType.value
     })
     
@@ -680,10 +803,50 @@ const convertInput = async () => {
   }
 
   try {
+    // Obtenir le contenu à convertir
+    let content = ''
+    if (activeInputTab.value === 'text') {
+      content = inputContent.value
+    } else if (selectedFile.value) {
+      content = await selectedFile.value.text()
+    }
+
+    // Définir le nom du projet automatiquement s'il n'est pas défini
+    if (!projectName.value) {
+      if (selectedFile.value) {
+        // Utiliser le nom du fichier sans extension
+        projectName.value = selectedFile.value.name.replace(/\.[^/.]+$/, "")
+      } else {
+        // Extraire du contenu YAML
+        const lines = content.split('\n')
+        const serviceLine = lines.find(line => line.trim().startsWith('services:'))
+        if (serviceLine) {
+          const serviceIndex = lines.indexOf(serviceLine)
+          const nextLine = lines.find((line, index) => {
+            return index > serviceIndex && line.trim() && !line.startsWith(' ') && !line.startsWith('\t') && line.includes(':')
+          })
+          if (nextLine) {
+            projectName.value = nextLine.trim().split(':')[0]
+          }
+        }
+        if (!projectName.value) {
+          projectName.value = 'mon-projet'
+        }
+      }
+    }
+
+    // Options de conversion avec le nom du projet et le type de génération
+    const options: ConversionOptions = {
+      ...conversionOptions.value,
+      projectName: projectName.value,
+      // Convertir outputType en allInOne boolean pour le backend
+      allInOne: outputType.value === 'all-in-one'
+    }
+
     await conversionStore.convert({
-      content: inputContent.value,
+      content: content,
       type: selectedType.value,
-      options: conversionOptions.value
+      options: options
     })
     
     if (conversionStore.isSuccess) {
@@ -706,6 +869,38 @@ const convertInput = async () => {
       title: 'Erreur de conversion',
       message: 'Erreur lors de la conversion'
     })
+  }
+}
+
+// Fonctions d'édition
+const startEditing = (index: number) => {
+  isEditing.value = index
+  editContent.value = conversionStore.generatedFiles[index].content
+}
+
+const saveEdit = (index: number) => {
+  if (isEditing.value === index) {
+    conversionStore.generatedFiles[index].content = editContent.value
+    isEditing.value = null
+    editContent.value = ''
+    
+    appStore.addNotification({
+      type: 'success',
+      title: 'Modifications sauvegardées',
+      message: 'Le fichier a été modifié avec succès'
+    })
+  }
+}
+
+const cancelEdit = () => {
+  isEditing.value = null
+  editContent.value = ''
+}
+
+// Fonction pour ouvrir le dialogue de fichier
+const openFileDialog = () => {
+  if (fileInput.value) {
+    fileInput.value.click()
   }
 }
 

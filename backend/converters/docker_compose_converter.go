@@ -85,7 +85,117 @@ func (c *DockerComposeToKubernetesConverter) Convert(ctx context.Context, req Co
 	// Extraire les options de conversion
 	options := c.extractGeneratorOptions(req.Options)
 
+	// Déterminer le nom du projet
+	projectName := c.extractProjectName(req.Options, dockerCompose)
+
+	// Convertir en mode "all-in-one" ou séparé selon les options
+	useAllInOne := c.shouldUseAllInOne(req.Options)
+
+	if useAllInOne {
+		return c.convertToAllInOneFile(ctx, dockerCompose, options, projectName)
+	} else {
+		return c.convertToSeparateFiles(ctx, dockerCompose, options)
+	}
+}
+
+// extractProjectName extrait le nom du projet des options ou du docker-compose
+func (c *DockerComposeToKubernetesConverter) extractProjectName(options map[string]interface{}, dockerCompose *docker.DockerCompose) string {
+	// Priorité 1: option explicite
+	if projectName, ok := options["projectName"].(string); ok && projectName != "" {
+		return projectName
+	}
+
+	// Priorité 2: nom par défaut basé sur le premier service
+	for serviceName := range dockerCompose.Services {
+		return fmt.Sprintf("%s-project", serviceName)
+	}
+
+	// Priorité 3: nom par défaut
+	return "kubernetes-project"
+}
+
+// shouldUseAllInOne détermine si on doit générer un seul fichier
+func (c *DockerComposeToKubernetesConverter) shouldUseAllInOne(options map[string]interface{}) bool {
+	if allInOne, ok := options["allInOne"].(bool); ok {
+		return allInOne
+	}
+
+	// Par défaut, utiliser le mode all-in-one
+	return true
+}
+
+// convertToAllInOneFile convertit en un seul fichier fusionné
+func (c *DockerComposeToKubernetesConverter) convertToAllInOneFile(ctx context.Context, dockerCompose *docker.DockerCompose, options kubernetes.GeneratorOptions, projectName string) (*ConversionResult, error) {
+	var kubernetesObjects []kubernetes.KubernetesObject
+	var conversionErrors []ConversionError
+	var warnings []ConversionWarning
+
 	// Convertir chaque service
+	for serviceName, service := range dockerCompose.Services {
+		objects, errs, warns := c.convertServiceToObjects(serviceName, service, options)
+		kubernetesObjects = append(kubernetesObjects, objects...)
+		conversionErrors = append(conversionErrors, errs...)
+		warnings = append(warnings, warns...)
+	}
+
+	// Générer les volumes globaux si nécessaire
+	if len(dockerCompose.Volumes) > 0 {
+		volumeObjects, volumeErrs := c.convertVolumesToObjects(dockerCompose.Volumes, options)
+		kubernetesObjects = append(kubernetesObjects, volumeObjects...)
+		conversionErrors = append(conversionErrors, volumeErrs...)
+	}
+
+	if len(kubernetesObjects) == 0 {
+		return &ConversionResult{
+			Success: false,
+			Errors: []ConversionError{
+				{
+					Code:    "NO_OBJECTS_GENERATED",
+					Message: "No Kubernetes objects were generated",
+				},
+			},
+		}, nil
+	}
+
+	// Générer le fichier fusionné
+	allInOneFile, err := kubernetes.GenerateAllInOneManifest(projectName, kubernetesObjects)
+	if err != nil {
+		conversionErrors = append(conversionErrors, ConversionError{
+			Code:    "ALL_IN_ONE_GENERATION_ERROR",
+			Message: fmt.Sprintf("Failed to generate all-in-one manifest: %v", err),
+		})
+	}
+
+	success := len(conversionErrors) == 0
+
+	var generatedFiles []GeneratedFile
+	if allInOneFile != nil {
+		// Convertir kubernetes.GeneratedFile vers converters.GeneratedFile
+		generatedFiles = append(generatedFiles, GeneratedFile{
+			Name:    allInOneFile.Name,
+			Content: allInOneFile.Content,
+			Type:    allInOneFile.Type,
+			Path:    allInOneFile.Path,
+		})
+	}
+
+	return &ConversionResult{
+		Success:  success,
+		Files:    generatedFiles,
+		Errors:   conversionErrors,
+		Warnings: warnings,
+		Metadata: map[string]interface{}{
+			"services_converted": len(dockerCompose.Services),
+			"volumes_converted":  len(dockerCompose.Volumes),
+			"docker_version":     dockerCompose.Version,
+			"project_name":       projectName,
+			"all_in_one":         true,
+		},
+	}, nil
+}
+
+// convertToSeparateFiles convertit en fichiers séparés (ancienne méthode)
+func (c *DockerComposeToKubernetesConverter) convertToSeparateFiles(ctx context.Context, dockerCompose *docker.DockerCompose, options kubernetes.GeneratorOptions) (*ConversionResult, error) {
 	var generatedFiles []GeneratedFile
 	var conversionErrors []ConversionError
 	var warnings []ConversionWarning
@@ -115,6 +225,7 @@ func (c *DockerComposeToKubernetesConverter) Convert(ctx context.Context, req Co
 			"services_converted": len(dockerCompose.Services),
 			"volumes_converted":  len(dockerCompose.Volumes),
 			"docker_version":     dockerCompose.Version,
+			"all_in_one":         false,
 		},
 	}, nil
 }
@@ -389,7 +500,7 @@ func (c *DockerComposeToKubernetesConverter) convertVolumes(volumes map[string]d
 				Capacity: map[string]string{
 					"storage": "1Gi", // Taille par défaut
 				},
-				AccessModes: []string{"ReadWriteOnce"},
+				AccessModes:                   []string{"ReadWriteOnce"},
 				PersistentVolumeReclaimPolicy: "Retain",
 				HostPath: &kubernetes.HostPathVolumeSource{
 					Path: fmt.Sprintf("/mnt/data/%s", volumeName),
@@ -444,8 +555,8 @@ func (c *DockerComposeToKubernetesConverter) checkUnsupportedFeatures(serviceNam
 	if service.DependsOn != nil {
 		if deps, ok := service.DependsOn.(map[string]docker.DependencyConfig); ok && len(deps) > 0 {
 			warnings = append(warnings, ConversionWarning{
-				Code:    "UNSUPPORTED_DEPENDS_ON",
-				Message: fmt.Sprintf("Dependencies for service %s are not directly supported in Kubernetes", serviceName),
+				Code:       "UNSUPPORTED_DEPENDS_ON",
+				Message:    fmt.Sprintf("Dependencies for service %s are not directly supported in Kubernetes", serviceName),
 				Suggestion: "Consider using init containers or readiness probes",
 			})
 		}
@@ -476,4 +587,93 @@ func (c *DockerComposeToKubernetesConverter) checkUnsupportedFeatures(serviceNam
 	}
 
 	return warnings
+}
+
+// convertServiceToObjects convertit un service en objets Kubernetes
+func (c *DockerComposeToKubernetesConverter) convertServiceToObjects(serviceName string, service docker.Service, options kubernetes.GeneratorOptions) ([]kubernetes.KubernetesObject, []ConversionError, []ConversionWarning) {
+	var objects []kubernetes.KubernetesObject
+	var errors []ConversionError
+	var warnings []ConversionWarning
+
+	// Conversion du service en map[string]interface{} pour le générateur
+	serviceData := c.serviceToMap(service)
+
+	// Générer le Deployment
+	deployment, err := kubernetes.GenerateDeployment(serviceName, serviceData, options)
+	if err != nil {
+		errors = append(errors, ConversionError{
+			Code:    "DEPLOYMENT_GENERATION_ERROR",
+			Message: fmt.Sprintf("Failed to generate deployment for service %s: %v", serviceName, err),
+		})
+	} else {
+		objects = append(objects, deployment)
+	}
+
+	// Générer le Service si nécessaire
+	kubernetesService, err := kubernetes.GenerateService(serviceName, serviceData, options)
+	if err != nil {
+		errors = append(errors, ConversionError{
+			Code:    "SERVICE_GENERATION_ERROR",
+			Message: fmt.Sprintf("Failed to generate service for %s: %v", serviceName, err),
+		})
+	} else if kubernetesService != nil {
+		objects = append(objects, kubernetesService)
+	}
+
+	// Générer la ConfigMap si nécessaire
+	configMap, err := kubernetes.GenerateConfigMap(serviceName, serviceData, options)
+	if err != nil {
+		warnings = append(warnings, ConversionWarning{
+			Code:    "CONFIGMAP_GENERATION_WARNING",
+			Message: fmt.Sprintf("Failed to generate configmap for %s: %v", serviceName, err),
+		})
+	} else if configMap != nil {
+		objects = append(objects, configMap)
+	}
+
+	// Ajouter des avertissements pour les fonctionnalités non supportées
+	warnings = append(warnings, c.checkUnsupportedFeatures(serviceName, service)...)
+
+	return objects, errors, warnings
+}
+
+// convertVolumesToObjects convertit les volumes en objets Kubernetes
+func (c *DockerComposeToKubernetesConverter) convertVolumesToObjects(volumes map[string]docker.Volume, options kubernetes.GeneratorOptions) ([]kubernetes.KubernetesObject, []ConversionError) {
+	var objects []kubernetes.KubernetesObject
+	var errors []ConversionError
+
+	for volumeName, volume := range volumes {
+		// Créer un PersistentVolume pour chaque volume nommé
+		pv := &kubernetes.PersistentVolume{
+			APIVersion: "v1",
+			Kind:       "PersistentVolume",
+			Metadata: kubernetes.Metadata{
+				Name:   volumeName,
+				Labels: options.Labels,
+			},
+			Spec: kubernetes.PersistentVolumeSpec{
+				Capacity: map[string]string{
+					"storage": "1Gi", // Taille par défaut
+				},
+				AccessModes:                   []string{"ReadWriteOnce"},
+				PersistentVolumeReclaimPolicy: "Retain",
+				HostPath: &kubernetes.HostPathVolumeSource{
+					Path: fmt.Sprintf("/mnt/data/%s", volumeName),
+				},
+			},
+		}
+
+		// Override avec les options du volume si disponibles
+		if volume.Driver != "" && volume.Driver != "local" {
+			errors = append(errors, ConversionError{
+				Code:    "UNSUPPORTED_VOLUME_DRIVER",
+				Message: fmt.Sprintf("Volume driver '%s' is not supported for volume '%s'", volume.Driver, volumeName),
+			})
+			continue
+		}
+
+		objects = append(objects, pv)
+	}
+
+	return objects, errors
 }

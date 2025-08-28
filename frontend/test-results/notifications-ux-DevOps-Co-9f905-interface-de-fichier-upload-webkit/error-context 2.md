@@ -1,0 +1,78 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - generic [ref=e11]:
+            - heading "DevOps Converter" [level=1] [ref=e12]
+            - paragraph [ref=e13]: Docker Compose → Kubernetes
+        - generic [ref=e14]:
+          - generic [ref=e17]: Hors ligne
+          - link "GitHub" [ref=e18]:
+            - /url: https://github.com/tky0065/devops-converter
+            - img [ref=e19]
+            - generic [ref=e21]: GitHub
+    - main [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - img [ref=e26]
+          - heading "Convertisseur Docker → Kubernetes" [level=1] [ref=e28]
+          - paragraph [ref=e29]:
+            - text: Transformez vos configurations Docker Compose en manifestes Kubernetes
+            - generic [ref=e30]: en quelques clics
+          - generic [ref=e31]:
+            - generic [ref=e32]:
+              - generic [ref=e33]: 100+
+              - generic [ref=e34]: Conversions
+            - generic [ref=e35]:
+              - generic [ref=e36]: 99.9%
+              - generic [ref=e37]: Précision
+            - generic [ref=e38]:
+              - generic [ref=e39]: <1s
+              - generic [ref=e40]: Temps moyen
+        - generic [ref=e41]:
+          - generic [ref=e43]:
+            - generic [ref=e44]:
+              - img [ref=e46]
+              - heading "Configuration d'entrée" [level=2] [ref=e48]
+            - generic [ref=e49]:
+              - generic [ref=e50]: Type de fichier
+              - combobox [ref=e51]:
+                - option "Docker Compose" [selected]
+            - navigation [ref=e54]:
+              - button "Texte" [ref=e55]
+              - button "Fichier" [ref=e56]
+            - generic [ref=e57]:
+              - generic [ref=e58]: Contenu Docker Compose
+              - 'textbox "version: ''3.8'' services: web: image: nginx:latest ports: - ''80:80'' environment: - ENV=production" [ref=e59]'
+            - generic [ref=e60]:
+              - heading "Options de conversion" [level=3] [ref=e61]
+              - generic [ref=e62]:
+                - generic [ref=e63]:
+                  - generic [ref=e64]: Namespace
+                  - textbox "default" [ref=e65]
+                - generic [ref=e66]:
+                  - generic [ref=e67]: Type de service
+                  - combobox [ref=e68]:
+                    - option "ClusterIP" [selected]
+                    - option "NodePort"
+                    - option "LoadBalancer"
+                - generic [ref=e69]:
+                  - generic [ref=e70]: Replicas
+                  - spinbutton [ref=e71]: "1"
+            - generic [ref=e72]:
+              - button "Valider" [disabled] [ref=e73]:
+                - generic [ref=e74]: Valider
+              - button "Convertir" [disabled] [ref=e75]:
+                - generic [ref=e76]: Convertir
+          - generic [ref=e78]:
+            - img [ref=e79]
+            - paragraph [ref=e81]: Les résultats de conversion apparaîtront ici
+  - generic [ref=e82]:
+    - img [ref=e84] [cursor=pointer]
+    - img [ref=e90] [cursor=pointer]
+```

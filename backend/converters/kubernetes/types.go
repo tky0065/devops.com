@@ -1,5 +1,16 @@
 package kubernetes
 
+import (
+	"gopkg.in/yaml.v3"
+)
+
+// KubernetesObject interface commune pour tous les objets Kubernetes
+type KubernetesObject interface {
+	ToYAML() (string, error)
+	GetName() string
+	GetKind() string
+}
+
 // KubernetesManifest représente un manifest Kubernetes générique
 type KubernetesManifest struct {
 	APIVersion string                 `yaml:"apiVersion"`
@@ -8,6 +19,25 @@ type KubernetesManifest struct {
 	Spec       map[string]interface{} `yaml:"spec,omitempty"`
 	Data       map[string]string      `yaml:"data,omitempty"`       // Pour ConfigMaps et Secrets
 	StringData map[string]string      `yaml:"stringData,omitempty"` // Pour Secrets
+}
+
+// ToYAML convertit le manifest en YAML
+func (m *KubernetesManifest) ToYAML() (string, error) {
+	yamlBytes, err := yaml.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
+}
+
+// GeneratedFile représente un fichier généré avec métadonnées
+type GeneratedFile struct {
+	Name     string `json:"name"`
+	Content  string `json:"content"`
+	Type     string `json:"type"`
+	Path     string `json:"path"`
+	Size     int    `json:"size,omitempty"`
+	Encoding string `json:"encoding,omitempty"`
 }
 
 // Metadata représente les métadonnées d'un objet Kubernetes
@@ -20,17 +50,36 @@ type Metadata struct {
 
 // Deployment représente un Deployment Kubernetes
 type Deployment struct {
-	APIVersion string           `yaml:"apiVersion"`
-	Kind       string           `yaml:"kind"`
-	Metadata   Metadata         `yaml:"metadata"`
-	Spec       DeploymentSpec   `yaml:"spec"`
+	APIVersion string         `yaml:"apiVersion"`
+	Kind       string         `yaml:"kind"`
+	Metadata   Metadata       `yaml:"metadata"`
+	Spec       DeploymentSpec `yaml:"spec"`
+}
+
+// ToYAML convertit le deployment en YAML
+func (d *Deployment) ToYAML() (string, error) {
+	yamlBytes, err := yaml.Marshal(d)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
+}
+
+// GetName retourne le nom du deployment
+func (d *Deployment) GetName() string {
+	return d.Metadata.Name
+}
+
+// GetKind retourne le type d'objet
+func (d *Deployment) GetKind() string {
+	return d.Kind
 }
 
 // DeploymentSpec représente la spec d'un Deployment
 type DeploymentSpec struct {
-	Replicas int32              `yaml:"replicas,omitempty"`
-	Selector *LabelSelector     `yaml:"selector"`
-	Template PodTemplateSpec    `yaml:"template"`
+	Replicas int32               `yaml:"replicas,omitempty"`
+	Selector *LabelSelector      `yaml:"selector"`
+	Template PodTemplateSpec     `yaml:"template"`
 	Strategy *DeploymentStrategy `yaml:"strategy,omitempty"`
 }
 
@@ -47,20 +96,20 @@ type PodTemplateSpec struct {
 
 // PodSpec représente la spec d'un Pod
 type PodSpec struct {
-	Containers                    []Container              `yaml:"containers"`
-	InitContainers               []Container              `yaml:"initContainers,omitempty"`
-	Volumes                      []Volume                 `yaml:"volumes,omitempty"`
-	RestartPolicy                string                   `yaml:"restartPolicy,omitempty"`
-	TerminationGracePeriodSeconds *int64                  `yaml:"terminationGracePeriodSeconds,omitempty"`
-	DNSPolicy                    string                   `yaml:"dnsPolicy,omitempty"`
-	ServiceAccountName           string                   `yaml:"serviceAccountName,omitempty"`
-	SecurityContext              *PodSecurityContext      `yaml:"securityContext,omitempty"`
-	ImagePullSecrets             []LocalObjectReference   `yaml:"imagePullSecrets,omitempty"`
-	Hostname                     string                   `yaml:"hostname,omitempty"`
-	Subdomain                    string                   `yaml:"subdomain,omitempty"`
-	NodeSelector                 map[string]string        `yaml:"nodeSelector,omitempty"`
-	Tolerations                  []Toleration             `yaml:"tolerations,omitempty"`
-	Affinity                     *Affinity                `yaml:"affinity,omitempty"`
+	Containers                    []Container            `yaml:"containers"`
+	InitContainers                []Container            `yaml:"initContainers,omitempty"`
+	Volumes                       []Volume               `yaml:"volumes,omitempty"`
+	RestartPolicy                 string                 `yaml:"restartPolicy,omitempty"`
+	TerminationGracePeriodSeconds *int64                 `yaml:"terminationGracePeriodSeconds,omitempty"`
+	DNSPolicy                     string                 `yaml:"dnsPolicy,omitempty"`
+	ServiceAccountName            string                 `yaml:"serviceAccountName,omitempty"`
+	SecurityContext               *PodSecurityContext    `yaml:"securityContext,omitempty"`
+	ImagePullSecrets              []LocalObjectReference `yaml:"imagePullSecrets,omitempty"`
+	Hostname                      string                 `yaml:"hostname,omitempty"`
+	Subdomain                     string                 `yaml:"subdomain,omitempty"`
+	NodeSelector                  map[string]string      `yaml:"nodeSelector,omitempty"`
+	Tolerations                   []Toleration           `yaml:"tolerations,omitempty"`
+	Affinity                      *Affinity              `yaml:"affinity,omitempty"`
 }
 
 // Container représente un conteneur
@@ -119,6 +168,25 @@ type Service struct {
 	Spec       ServiceSpec `yaml:"spec"`
 }
 
+// ToYAML convertit le service en YAML
+func (s *Service) ToYAML() (string, error) {
+	yamlBytes, err := yaml.Marshal(s)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
+}
+
+// GetName retourne le nom du service
+func (s *Service) GetName() string {
+	return s.Metadata.Name
+}
+
+// GetKind retourne le type d'objet
+func (s *Service) GetKind() string {
+	return s.Kind
+}
+
 // ServiceSpec représente la spec d'un Service
 type ServiceSpec struct {
 	Type                     string            `yaml:"type,omitempty"`
@@ -150,56 +218,94 @@ type ConfigMap struct {
 	BinaryData map[string][]byte `yaml:"binaryData,omitempty"`
 }
 
+// ToYAML convertit la configmap en YAML
+func (c *ConfigMap) ToYAML() (string, error) {
+	yamlBytes, err := yaml.Marshal(c)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
+}
+
+// GetName retourne le nom de la configmap
+func (c *ConfigMap) GetName() string {
+	return c.Metadata.Name
+}
+
+// GetKind retourne le type d'objet
+func (c *ConfigMap) GetKind() string {
+	return c.Kind
+}
+
 // PersistentVolume représente un PersistentVolume Kubernetes
 type PersistentVolume struct {
-	APIVersion string                 `yaml:"apiVersion"`
-	Kind       string                 `yaml:"kind"`
-	Metadata   Metadata               `yaml:"metadata"`
-	Spec       PersistentVolumeSpec   `yaml:"spec"`
+	APIVersion string               `yaml:"apiVersion"`
+	Kind       string               `yaml:"kind"`
+	Metadata   Metadata             `yaml:"metadata"`
+	Spec       PersistentVolumeSpec `yaml:"spec"`
+}
+
+// ToYAML convertit le PV en YAML
+func (pv *PersistentVolume) ToYAML() (string, error) {
+	yamlBytes, err := yaml.Marshal(pv)
+	if err != nil {
+		return "", err
+	}
+	return string(yamlBytes), nil
+}
+
+// GetName retourne le nom du PV
+func (pv *PersistentVolume) GetName() string {
+	return pv.Metadata.Name
+}
+
+// GetKind retourne le type d'objet
+func (pv *PersistentVolume) GetKind() string {
+	return pv.Kind
 }
 
 // PersistentVolumeSpec représente la spec d'un PersistentVolume
 type PersistentVolumeSpec struct {
-	Capacity                      map[string]string               `yaml:"capacity"`
-	AccessModes                   []string                        `yaml:"accessModes"`
-	PersistentVolumeReclaimPolicy string                          `yaml:"persistentVolumeReclaimPolicy,omitempty"`
-	StorageClassName              string                          `yaml:"storageClassName,omitempty"`
-	MountOptions                  []string                        `yaml:"mountOptions,omitempty"`
-	VolumeMode                    string                          `yaml:"volumeMode,omitempty"`
-	NodeAffinity                  *VolumeNodeAffinity             `yaml:"nodeAffinity,omitempty"`
-	HostPath                      *HostPathVolumeSource           `yaml:"hostPath,omitempty"`
-	NFS                           *NFSVolumeSource                `yaml:"nfs,omitempty"`
-	ISCSI                         *ISCSIVolumeSource              `yaml:"iscsi,omitempty"`
-	Local                         *LocalVolumeSource              `yaml:"local,omitempty"`
+	Capacity                      map[string]string     `yaml:"capacity"`
+	AccessModes                   []string              `yaml:"accessModes"`
+	PersistentVolumeReclaimPolicy string                `yaml:"persistentVolumeReclaimPolicy,omitempty"`
+	StorageClassName              string                `yaml:"storageClassName,omitempty"`
+	MountOptions                  []string              `yaml:"mountOptions,omitempty"`
+	VolumeMode                    string                `yaml:"volumeMode,omitempty"`
+	NodeAffinity                  *VolumeNodeAffinity   `yaml:"nodeAffinity,omitempty"`
+	HostPath                      *HostPathVolumeSource `yaml:"hostPath,omitempty"`
+	NFS                           *NFSVolumeSource      `yaml:"nfs,omitempty"`
+	ISCSI                         *ISCSIVolumeSource    `yaml:"iscsi,omitempty"`
+	Local                         *LocalVolumeSource    `yaml:"local,omitempty"`
 }
 
 // PersistentVolumeClaim représente un PersistentVolumeClaim Kubernetes
 type PersistentVolumeClaim struct {
-	APIVersion string                      `yaml:"apiVersion"`
-	Kind       string                      `yaml:"kind"`
-	Metadata   Metadata                    `yaml:"metadata"`
-	Spec       PersistentVolumeClaimSpec   `yaml:"spec"`
+	APIVersion string                    `yaml:"apiVersion"`
+	Kind       string                    `yaml:"kind"`
+	Metadata   Metadata                  `yaml:"metadata"`
+	Spec       PersistentVolumeClaimSpec `yaml:"spec"`
 }
 
 // PersistentVolumeClaimSpec représente la spec d'un PersistentVolumeClaim
 type PersistentVolumeClaimSpec struct {
-	AccessModes      []string                   `yaml:"accessModes"`
-	Resources        *ResourceRequirements      `yaml:"resources,omitempty"`
-	VolumeName       string                     `yaml:"volumeName,omitempty"`
-	StorageClassName *string                    `yaml:"storageClassName,omitempty"`
-	VolumeMode       string                     `yaml:"volumeMode,omitempty"`
-	Selector         *LabelSelector             `yaml:"selector,omitempty"`
+	AccessModes      []string              `yaml:"accessModes"`
+	Resources        *ResourceRequirements `yaml:"resources,omitempty"`
+	VolumeName       string                `yaml:"volumeName,omitempty"`
+	StorageClassName *string               `yaml:"storageClassName,omitempty"`
+	VolumeMode       string                `yaml:"volumeMode,omitempty"`
+	Selector         *LabelSelector        `yaml:"selector,omitempty"`
 }
 
 // Volume représente un volume dans un Pod
 type Volume struct {
-	Name                  string                   `yaml:"name"`
-	HostPath              *HostPathVolumeSource    `yaml:"hostPath,omitempty"`
-	EmptyDir              *EmptyDirVolumeSource    `yaml:"emptyDir,omitempty"`
-	ConfigMap             *ConfigMapVolumeSource   `yaml:"configMap,omitempty"`
-	Secret                *SecretVolumeSource      `yaml:"secret,omitempty"`
-	PersistentVolumeClaim *PVCVolumeSource         `yaml:"persistentVolumeClaim,omitempty"`
-	NFS                   *NFSVolumeSource         `yaml:"nfs,omitempty"`
+	Name                  string                 `yaml:"name"`
+	HostPath              *HostPathVolumeSource  `yaml:"hostPath,omitempty"`
+	EmptyDir              *EmptyDirVolumeSource  `yaml:"emptyDir,omitempty"`
+	ConfigMap             *ConfigMapVolumeSource `yaml:"configMap,omitempty"`
+	Secret                *SecretVolumeSource    `yaml:"secret,omitempty"`
+	PersistentVolumeClaim *PVCVolumeSource       `yaml:"persistentVolumeClaim,omitempty"`
+	NFS                   *NFSVolumeSource       `yaml:"nfs,omitempty"`
 }
 
 // VolumeMount représente un montage de volume
@@ -214,12 +320,12 @@ type VolumeMount struct {
 
 // Probe représente une probe de santé
 type Probe struct {
-	Handler             Handler    `yaml:",inline"`
-	InitialDelaySeconds int32      `yaml:"initialDelaySeconds,omitempty"`
-	TimeoutSeconds      int32      `yaml:"timeoutSeconds,omitempty"`
-	PeriodSeconds       int32      `yaml:"periodSeconds,omitempty"`
-	SuccessThreshold    int32      `yaml:"successThreshold,omitempty"`
-	FailureThreshold    int32      `yaml:"failureThreshold,omitempty"`
+	Handler             Handler `yaml:",inline"`
+	InitialDelaySeconds int32   `yaml:"initialDelaySeconds,omitempty"`
+	TimeoutSeconds      int32   `yaml:"timeoutSeconds,omitempty"`
+	PeriodSeconds       int32   `yaml:"periodSeconds,omitempty"`
+	SuccessThreshold    int32   `yaml:"successThreshold,omitempty"`
+	FailureThreshold    int32   `yaml:"failureThreshold,omitempty"`
 }
 
 // Handler représente un handler de probe
@@ -236,11 +342,11 @@ type ExecAction struct {
 
 // HTTPGetAction représente une action HTTP GET
 type HTTPGetAction struct {
-	Path        string            `yaml:"path,omitempty"`
-	Port        string            `yaml:"port"`
-	Host        string            `yaml:"host,omitempty"`
-	Scheme      string            `yaml:"scheme,omitempty"`
-	HTTPHeaders []HTTPHeader      `yaml:"httpHeaders,omitempty"`
+	Path        string       `yaml:"path,omitempty"`
+	Port        string       `yaml:"port"`
+	Host        string       `yaml:"host,omitempty"`
+	Scheme      string       `yaml:"scheme,omitempty"`
+	HTTPHeaders []HTTPHeader `yaml:"httpHeaders,omitempty"`
 }
 
 // HTTPHeader représente un header HTTP
@@ -263,7 +369,7 @@ type ResourceRequirements struct {
 
 // DeploymentStrategy représente la stratégie de déploiement
 type DeploymentStrategy struct {
-	Type          string                 `yaml:"type,omitempty"`
+	Type          string                   `yaml:"type,omitempty"`
 	RollingUpdate *RollingUpdateDeployment `yaml:"rollingUpdate,omitempty"`
 }
 
@@ -310,17 +416,17 @@ type NFSVolumeSource struct {
 }
 
 type ISCSIVolumeSource struct {
-	TargetPortal string   `yaml:"targetPortal"`
-	IQN          string   `yaml:"iqn"`
-	Lun          int32    `yaml:"lun"`
-	ISCSIInterface string `yaml:"iscsiInterface,omitempty"`
-	FSType       string   `yaml:"fsType,omitempty"`
-	ReadOnly     bool     `yaml:"readOnly,omitempty"`
-	Portals      []string `yaml:"portals,omitempty"`
+	TargetPortal   string   `yaml:"targetPortal"`
+	IQN            string   `yaml:"iqn"`
+	Lun            int32    `yaml:"lun"`
+	ISCSIInterface string   `yaml:"iscsiInterface,omitempty"`
+	FSType         string   `yaml:"fsType,omitempty"`
+	ReadOnly       bool     `yaml:"readOnly,omitempty"`
+	Portals        []string `yaml:"portals,omitempty"`
 }
 
 type LocalVolumeSource struct {
-	Path string `yaml:"path"`
+	Path   string `yaml:"path"`
 	FSType string `yaml:"fsType,omitempty"`
 }
 
@@ -359,9 +465,9 @@ type SecretKeySelector struct {
 }
 
 type EnvFromSource struct {
-	Prefix       string                  `yaml:"prefix,omitempty"`
-	ConfigMapRef *ConfigMapEnvSource     `yaml:"configMapRef,omitempty"`
-	SecretRef    *SecretEnvSource        `yaml:"secretRef,omitempty"`
+	Prefix       string              `yaml:"prefix,omitempty"`
+	ConfigMapRef *ConfigMapEnvSource `yaml:"configMapRef,omitempty"`
+	SecretRef    *SecretEnvSource    `yaml:"secretRef,omitempty"`
 }
 
 type ConfigMapEnvSource struct {
@@ -376,30 +482,30 @@ type SecretEnvSource struct {
 
 // Contextes de sécurité
 type SecurityContext struct {
-	Capabilities             *Capabilities      `yaml:"capabilities,omitempty"`
-	Privileged               *bool              `yaml:"privileged,omitempty"`
-	SELinuxOptions           *SELinuxOptions    `yaml:"seLinuxOptions,omitempty"`
+	Capabilities             *Capabilities                  `yaml:"capabilities,omitempty"`
+	Privileged               *bool                          `yaml:"privileged,omitempty"`
+	SELinuxOptions           *SELinuxOptions                `yaml:"seLinuxOptions,omitempty"`
 	WindowsOptions           *WindowsSecurityContextOptions `yaml:"windowsOptions,omitempty"`
-	RunAsUser                *int64             `yaml:"runAsUser,omitempty"`
-	RunAsGroup               *int64             `yaml:"runAsGroup,omitempty"`
-	RunAsNonRoot             *bool              `yaml:"runAsNonRoot,omitempty"`
-	ReadOnlyRootFilesystem   *bool              `yaml:"readOnlyRootFilesystem,omitempty"`
-	AllowPrivilegeEscalation *bool              `yaml:"allowPrivilegeEscalation,omitempty"`
-	ProcMount                string             `yaml:"procMount,omitempty"`
-	SeccompProfile           *SeccompProfile    `yaml:"seccompProfile,omitempty"`
+	RunAsUser                *int64                         `yaml:"runAsUser,omitempty"`
+	RunAsGroup               *int64                         `yaml:"runAsGroup,omitempty"`
+	RunAsNonRoot             *bool                          `yaml:"runAsNonRoot,omitempty"`
+	ReadOnlyRootFilesystem   *bool                          `yaml:"readOnlyRootFilesystem,omitempty"`
+	AllowPrivilegeEscalation *bool                          `yaml:"allowPrivilegeEscalation,omitempty"`
+	ProcMount                string                         `yaml:"procMount,omitempty"`
+	SeccompProfile           *SeccompProfile                `yaml:"seccompProfile,omitempty"`
 }
 
 type PodSecurityContext struct {
-	SELinuxOptions      *SELinuxOptions    `yaml:"seLinuxOptions,omitempty"`
+	SELinuxOptions      *SELinuxOptions                `yaml:"seLinuxOptions,omitempty"`
 	WindowsOptions      *WindowsSecurityContextOptions `yaml:"windowsOptions,omitempty"`
-	RunAsUser           *int64             `yaml:"runAsUser,omitempty"`
-	RunAsGroup          *int64             `yaml:"runAsGroup,omitempty"`
-	RunAsNonRoot        *bool              `yaml:"runAsNonRoot,omitempty"`
-	SupplementalGroups  []int64            `yaml:"supplementalGroups,omitempty"`
-	FSGroup             *int64             `yaml:"fsGroup,omitempty"`
-	Sysctls             []Sysctl           `yaml:"sysctls,omitempty"`
-	FSGroupChangePolicy string             `yaml:"fsGroupChangePolicy,omitempty"`
-	SeccompProfile      *SeccompProfile    `yaml:"seccompProfile,omitempty"`
+	RunAsUser           *int64                         `yaml:"runAsUser,omitempty"`
+	RunAsGroup          *int64                         `yaml:"runAsGroup,omitempty"`
+	RunAsNonRoot        *bool                          `yaml:"runAsNonRoot,omitempty"`
+	SupplementalGroups  []int64                        `yaml:"supplementalGroups,omitempty"`
+	FSGroup             *int64                         `yaml:"fsGroup,omitempty"`
+	Sysctls             []Sysctl                       `yaml:"sysctls,omitempty"`
+	FSGroupChangePolicy string                         `yaml:"fsGroupChangePolicy,omitempty"`
+	SeccompProfile      *SeccompProfile                `yaml:"seccompProfile,omitempty"`
 }
 
 type Capabilities struct {
@@ -439,7 +545,7 @@ type Affinity struct {
 }
 
 type NodeAffinity struct {
-	RequiredDuringSchedulingIgnoredDuringExecution  *NodeSelector              `yaml:"requiredDuringSchedulingIgnoredDuringExecution,omitempty"`
+	RequiredDuringSchedulingIgnoredDuringExecution  *NodeSelector             `yaml:"requiredDuringSchedulingIgnoredDuringExecution,omitempty"`
 	PreferredDuringSchedulingIgnoredDuringExecution []PreferredSchedulingTerm `yaml:"preferredDuringSchedulingIgnoredDuringExecution,omitempty"`
 }
 
@@ -486,11 +592,11 @@ type WeightedPodAffinityTerm struct {
 }
 
 type Toleration struct {
-	Key               string        `yaml:"key,omitempty"`
-	Operator          string        `yaml:"operator,omitempty"`
-	Value             string        `yaml:"value,omitempty"`
-	Effect            string        `yaml:"effect,omitempty"`
-	TolerationSeconds *int64        `yaml:"tolerationSeconds,omitempty"`
+	Key               string `yaml:"key,omitempty"`
+	Operator          string `yaml:"operator,omitempty"`
+	Value             string `yaml:"value,omitempty"`
+	Effect            string `yaml:"effect,omitempty"`
+	TolerationSeconds *int64 `yaml:"tolerationSeconds,omitempty"`
 }
 
 type VolumeNodeAffinity struct {

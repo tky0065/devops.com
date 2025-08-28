@@ -9,6 +9,9 @@ export interface ConversionOptions {
   namespace?: string
   serviceType?: 'ClusterIP' | 'NodePort' | 'LoadBalancer'
   replicas?: number
+  projectName?: string
+  outputType?: 'all-in-one' | 'separate'
+  allInOne?: boolean
   [key: string]: any
 }
 

@@ -23,13 +23,12 @@ export const useAppStore = defineStore('app', () => {
         apiService.getVersion(),
         apiService.getHealthDetailed()
       ])
-      
+
       appInfo.value = version
       healthInfo.value = health
       isHealthy.value = health.status === 'ok'
     } catch (error) {
       isHealthy.value = false
-      console.error('Failed to load app info:', error)
     }
   }
 
@@ -52,7 +51,7 @@ export const useAppStore = defineStore('app', () => {
       id,
       timestamp: new Date()
     })
-    
+
     // Auto-remove après 5 secondes pour les succès et infos
     if (notification.type === 'success' || notification.type === 'info') {
       setTimeout(() => {
@@ -78,7 +77,7 @@ export const useAppStore = defineStore('app', () => {
     healthInfo,
     isHealthy,
     notifications,
-    
+
     // Actions
     loadAppInfo,
     checkHealth,

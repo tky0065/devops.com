@@ -21,7 +21,7 @@ export const useConversionStore = defineStore('conversion', () => {
   async function convert(request: ConversionRequest) {
     isLoading.value = true
     error.value = null
-    
+
     try {
       const response = await apiService.convert(request)
       currentConversion.value = response
@@ -37,7 +37,7 @@ export const useConversionStore = defineStore('conversion', () => {
   async function validate(request: ValidationRequest) {
     isLoading.value = true
     error.value = null
-    
+
     try {
       const response = await apiService.validate(request)
       validationResult.value = response
@@ -53,7 +53,7 @@ export const useConversionStore = defineStore('conversion', () => {
   async function uploadAndConvert(file: File, type: string, options?: any) {
     isLoading.value = true
     error.value = null
-    
+
     try {
       const response = await apiService.uploadAndConvert(file, type, options)
       currentConversion.value = response
@@ -101,7 +101,7 @@ export const useConversionStore = defineStore('conversion', () => {
     validationResult,
     availableConverters,
     error,
-    
+
     // Actions
     convert,
     validate,
@@ -109,7 +109,7 @@ export const useConversionStore = defineStore('conversion', () => {
     loadConverters,
     clearConversion,
     clearError,
-    
+
     // Getters
     hasResults,
     isSuccess,

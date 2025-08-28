@@ -11,6 +11,41 @@ type Generator interface {
 	GenerateManifests(serviceName string, service interface{}, options GeneratorOptions) ([]KubernetesManifest, error)
 }
 
+// GenerateAllInOneManifest génère un fichier unique contenant tous les manifestes
+func GenerateAllInOneManifest(projectName string, objects []KubernetesObject) (*GeneratedFile, error) {
+	if projectName == "" {
+		projectName = "kubernetes-project"
+	}
+
+	var manifestContents []string
+
+	for i, obj := range objects {
+		yamlContent, err := obj.ToYAML()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert manifest to YAML: %w", err)
+		}
+
+		manifestContents = append(manifestContents, yamlContent)
+
+		// Ajouter un séparateur entre les manifestes (sauf pour le dernier)
+		if i < len(objects)-1 {
+			manifestContents = append(manifestContents, "---")
+		}
+	}
+
+	allInOneContent := strings.Join(manifestContents, "\n")
+	fileName := fmt.Sprintf("%s-kubernetes.yaml", projectName)
+
+	return &GeneratedFile{
+		Name:     fileName,
+		Content:  allInOneContent,
+		Type:     "kubernetes-manifest",
+		Path:     fileName,
+		Size:     len(allInOneContent),
+		Encoding: "utf-8",
+	}, nil
+}
+
 // GeneratorOptions options de génération
 type GeneratorOptions struct {
 	Namespace       string            `json:"namespace"`
@@ -198,7 +233,7 @@ func generateContainerPorts(ports interface{}) ([]ContainerPort, error) {
 // parsePortMapping parse une mapping de port Docker Compose
 func parsePortMapping(portMapping string) (*ContainerPort, error) {
 	parts := strings.Split(portMapping, ":")
-	
+
 	var containerPortNum int32
 	var protocol = "TCP"
 
@@ -324,17 +359,23 @@ func generateVolumes(service map[string]interface{}) ([]Volume, []VolumeMount, e
 // parseVolumeMapping parse un mapping de volume Docker Compose
 func parseVolumeMapping(volumeMapping string, index int) (*Volume, *VolumeMount, error) {
 	parts := strings.Split(volumeMapping, ":")
-	
-	if len(parts) < 2 {
-		return nil, nil, fmt.Errorf("invalid volume mapping format: %s", volumeMapping)
-	}
 
-	hostPath := parts[0]
-	containerPath := parts[1]
+	var hostPath string
+	var containerPath string
 	readOnly := false
 
-	if len(parts) > 2 && parts[2] == "ro" {
-		readOnly = true
+	switch len(parts) {
+	case 1:
+		// Single value. Treat it as a host path mounted at the same container path
+		hostPath = parts[0]
+		containerPath = parts[0]
+	default:
+		// Expected formats: host:container[:mode] or named-volume:container[:mode]
+		hostPath = parts[0]
+		containerPath = parts[1]
+		if len(parts) > 2 && parts[2] == "ro" {
+			readOnly = true
+		}
 	}
 
 	volumeName := fmt.Sprintf("volume-%d", index)

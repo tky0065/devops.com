@@ -26,7 +26,7 @@ class ApiService {
     this.api.interceptors.response.use(
       (response) => response,
       (error) => {
-        console.error('API Error:', error)
+
         return Promise.reject(error)
       }
     )
@@ -34,34 +34,72 @@ class ApiService {
 
   // Conversion
   async convert(request: ConversionRequest): Promise<ConversionResponse> {
-    const response: AxiosResponse<ConversionResponse> = await this.api.post('/api/v1/convert/', request)
-    return response.data
+    // Restructurer la requête pour correspondre à l'API backend
+    const apiRequest = {
+      type: request.type,
+      content: request.content,
+      options: request.options || {}
+    }
+    try {
+      const response: AxiosResponse<ConversionResponse> = await this.api.post('/api/v1/convert/', apiRequest)
+      return response.data
+    } catch (err: unknown) {
+      // If server returned JSON (even for 400), surface it so UI can display structured errors
+      const e = err as { response?: { data?: unknown } }
+      if (e && e.response && e.response.data) {
+        return e.response.data as ConversionResponse
+      }
+      // rethrow otherwise
+      throw err
+    }
   }
 
   // Validation
   async validate(request: ValidationRequest): Promise<ValidationResponse> {
-    const response: AxiosResponse<ValidationResponse> = await this.api.post('/api/v1/convert/validate', request)
-    return response.data
+    // Restructurer la requête pour correspondre à l'API backend
+    const apiRequest = {
+      type: request.type,
+      content: request.content  // Le backend attend "content" aussi pour la validation
+    }
+    try {
+      const response: AxiosResponse<ValidationResponse> = await this.api.post('/api/v1/convert/validate', apiRequest)
+      return response.data
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: unknown } }
+      if (e && e.response && e.response.data) {
+        return e.response.data as ValidationResponse
+      }
+      throw err
+    }
   }
 
   // Upload et conversion
-  async uploadAndConvert(file: File, type: string, options?: any): Promise<ConversionResponse> {
+  async uploadAndConvert(file: File, type: string, options?: Record<string, unknown>): Promise<ConversionResponse> {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('type', type)
-    
+
     if (options) {
       Object.keys(options).forEach(key => {
-        formData.append(key, options[key])
+        const v = options[key]
+        formData.append(key, v === undefined || v === null ? '' : String(v))
       })
     }
 
-    const response: AxiosResponse<ConversionResponse> = await this.api.post('/api/v1/upload/', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
+    try {
+      const response: AxiosResponse<ConversionResponse> = await this.api.post('/api/v1/upload/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      return response.data
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: unknown } }
+      if (e && e.response && e.response.data) {
+        return e.response.data as ConversionResponse
       }
-    })
-    return response.data
+      throw err
+    }
   }
 
   // Liste des convertisseurs

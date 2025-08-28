@@ -1,7 +1,0 @@
-{
-  "type": "docker-compose",
-  "content": "version: '3.8'\nservices:\n  web:\n    image: nginx\n    environment:\n      - ENV=prod",
-  "options": {
-    "namespace": "default"
-  }
-}

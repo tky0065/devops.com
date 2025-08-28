@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -43,8 +44,12 @@ type ConvertResponse struct {
 // Convert endpoint principal de conversion
 func (h *ConvertHandler) Convert(c *gin.Context) {
 	var req ConvertRequest
-	
+
+	// Log de débogage
+	fmt.Printf("[DEBUG] Received conversion request\n")
+
 	if err := c.ShouldBindJSON(&req); err != nil {
+		fmt.Printf("[ERROR] Invalid request format: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   "Invalid request format",
@@ -52,6 +57,10 @@ func (h *ConvertHandler) Convert(c *gin.Context) {
 		})
 		return
 	}
+
+	// Log des données reçues
+	fmt.Printf("[DEBUG] Request parsed - Type: %s, Content length: %d, Options: %v\n",
+		req.Type, len(req.Content), req.Options)
 
 	// Vérifier la taille du contenu
 	if len(req.Content) > 10*1024*1024 { // 10MB max
@@ -130,7 +139,7 @@ type ValidateResponse struct {
 // Validate endpoint de validation des fichiers
 func (h *ConvertHandler) Validate(c *gin.Context) {
 	var req ValidateRequest
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"valid":   false,
@@ -170,7 +179,7 @@ func (h *ConvertHandler) Validate(c *gin.Context) {
 // GetConverters retourne la liste des convertisseurs disponibles
 func (h *ConvertHandler) GetConverters(c *gin.Context) {
 	converters := h.registry.GetAvailableConverters()
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":    true,
 		"converters": converters,
@@ -254,15 +263,15 @@ func (h *UploadHandler) UploadAndConvert(c *gin.Context) {
 
 	// Obtenir les options de conversion
 	options := make(map[string]interface{})
-	
+
 	if namespace := c.PostForm("namespace"); namespace != "" {
 		options["namespace"] = namespace
 	}
-	
+
 	if serviceType := c.PostForm("serviceType"); serviceType != "" {
 		options["serviceType"] = serviceType
 	}
-	
+
 	if replicas := c.PostForm("replicas"); replicas != "" {
 		if r, err := strconv.Atoi(replicas); err == nil {
 			options["replicas"] = r
@@ -332,19 +341,19 @@ func determineFileType(filename string) string {
 	if filename == "" {
 		return ""
 	}
-	
+
 	// Convertir en minuscules pour la comparaison
 	lower := strings.ToLower(filename)
-	
-	if strings.HasSuffix(lower, "docker-compose.yml") || 
-	   strings.HasSuffix(lower, "docker-compose.yaml") ||
-	   strings.Contains(lower, "compose") {
+
+	if strings.HasSuffix(lower, "docker-compose.yml") ||
+		strings.HasSuffix(lower, "docker-compose.yaml") ||
+		strings.Contains(lower, "compose") {
 		return "docker-compose"
 	}
-	
+
 	if strings.HasSuffix(lower, "dockerfile") {
 		return "dockerfile"
 	}
-	
+
 	return ""
 }
