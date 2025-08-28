@@ -3,6 +3,9 @@
 # Stage 1: Build
 FROM golang:1.24.5-alpine AS builder
 
+# build-time target architecture (populated by BuildKit / docker buildx)
+ARG TARGETARCH
+
 # Installer les dépendances nécessaires
 RUN apk add --no-cache git ca-certificates tzdata
 
@@ -22,7 +25,8 @@ RUN go mod download
 COPY . .
 
 # Build de l'application avec optimisations
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+# Use TARGETARCH if provided (e.g. arm64/amd64) so the produced binary matches the host
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} go build \
     -ldflags='-w -s -extldflags "-static"' \
     -a -installsuffix cgo \
     -o devops-converter .

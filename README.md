@@ -601,4 +601,36 @@ docker network create traefik
 
 - Les labels configurés sur les services exposent `devops.enokdev.com` pour le frontend et `/api` pour le backend. Adaptez les règles si vous voulez sous-domaines séparés (ex: `api.devops.enokdev.com`).
 
+### Construire l'image backend pour l'architecture du VPS
+
+Si votre VPS est arm64 (par ex. AWS Graviton, Apple Silicon), le binaire compilé pour amd64 provoquera `exec format error`. Deux approches :
+
+1) Construire localement avec BuildKit / buildx (multi-arch) :
+
+```bash
+# activer buildx si nécessaire
+docker buildx create --use --name mybuilder || true
+docker buildx inspect --bootstrap
+
+# builder respectera TARGETARCH automatiquement
+docker buildx build --platform linux/amd64,linux/arm64 -t devops-converter-backend:latest --push ./backend
+```
+
+2) Reconstruire directement sur le VPS (simple) :
+
+```bash
+# sur le VPS, depuis la racine du repo
+docker compose build --no-cache backend
+docker compose up -d
+```
+
+3) Vérifier l'architecture du VPS :
+
+```bash
+uname -m
+# x86_64 => amd64 ; aarch64 => arm64
+```
+
+Si vous voulez, je peux générer un `docker buildx` script dans le repo pour automatiser la publication multi-arch sur un registry.
+
 
