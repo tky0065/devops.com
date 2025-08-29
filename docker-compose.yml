@@ -11,11 +11,12 @@ services:
       - APP_ENV=production
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8080
-    restart: unless-stopped
+    restart: always
     networks:
       - default
       - web
     labels:
+      - "traefik.docker.network=web"
       - "traefik.enable=true"
       # TLS router for API
       - "traefik.http.routers.devops-backend.rule=Host(`devops.enokdev.com`) && PathPrefix(`/api`)"
@@ -27,6 +28,12 @@ services:
       - "traefik.http.routers.devops-backend-http.entrypoints=web"
       - "traefik.http.routers.devops-backend-http.middlewares=devops-backend-redirect"
       - "traefik.http.middlewares.devops-backend-redirect.redirectscheme.scheme=https"
+    healthcheck:
+      test: ["CMD-SHELL", "/devops-converter --health-check"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
   frontend:
     build:
@@ -36,11 +43,12 @@ services:
     container_name: devops-frontend
     depends_on:
       - backend
-    restart: unless-stopped
+    restart: always
     networks:
       - default
       - web
     labels:
+      - "traefik.docker.network=web"
       - "traefik.enable=true"
       # TLS router for frontend
       - "traefik.http.routers.devops-frontend.rule=Host(`devops.enokdev.com`)"

@@ -36,6 +36,18 @@ func main() {
 	// Configurer les routes
 	router := routes.SetupRoutes(cfg, registry)
 
+	// Supporter un mode de vérification de santé invoqué par le HEALTHCHECK
+	// Le binaire doit retourner rapidement 0 (healthy) ou 1 (unhealthy)
+	if len(os.Args) > 1 && os.Args[1] == "--health-check" {
+		// Petite vérification : s'assurer que des convertisseurs sont chargés
+		if len(registry.GetAvailableConverters()) > 0 {
+			fmt.Println("ok")
+			os.Exit(0)
+		}
+		fmt.Println("not ready")
+		os.Exit(1)
+	}
+
 	// Configurer le serveur HTTP
 	server := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
@@ -51,7 +63,7 @@ func main() {
 	// Démarrer le serveur dans une goroutine
 	go func() {
 		fmt.Printf("Server starting on %s\n", server.Addr)
-		
+
 		var err error
 		if cfg.Server.TLS.Enabled {
 			fmt.Println("Starting HTTPS server...")
@@ -96,6 +108,6 @@ func registerConverters(registry converters.ConverterRegistry) error {
 	// - Helm Charts, etc.
 
 	fmt.Printf("Registered %d converter(s)\n", len(registry.GetAvailableConverters()))
-	
+
 	return nil
 }
