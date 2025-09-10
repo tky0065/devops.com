@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: devops-converter-backend:latest
+    container_name: devops-backend
+    environment:
+      - APP_ENV=production
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+    restart: always
+    networks:
+      - default
+      - web
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: devops-converter-frontend:latest
+    container_name: devops-frontend
+    depends_on:
+      - backend
+    restart: always
+    networks:
+      - default
+      - web
+
+networks:
+  default:
+    driver: bridge
+  web:
+    external: true
